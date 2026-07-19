@@ -1,0 +1,7 @@
+# Compiled binaries (the build produces these; they are not source).
+/mcp-bridge
+/mcp-bridge.exe
+*.exe
+
+# Bridge runtime state, if ever written into the working tree during local runs.
+.bridge-state.json
