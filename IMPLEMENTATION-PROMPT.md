@@ -1,11 +1,5 @@
 # Claude Code Prompt — Minimal `mcp-bridge` Implementation
 
-> **This is the Claude Code on the web (cloud VM) edition of the prompt.** The
-> original, authored for a local Windows + Cygwin session, lives in
-> `fpl9000/ai-skills` at `docs/stateful-agent-design/mcp-bridge-minimal-implementation-prompt.md`.
-> Only the *environment-specific* parts differ; every scope decision below is
-> identical to the original.
-
 ## 0. Environment and ground rules (read first)
 
 You are running in an isolated cloud VM that is already connected to the
