@@ -31,7 +31,7 @@ You are running in an isolated cloud VM that is already connected to the
 
 Build the **minimal first cut** of the MCP Bridge Server for my Stateful Agent System: the memory subsystem only. No sub-agent spawning, no local command execution, no maintenance/merging, and no branching. The goal is a working, tested, single-binary MCP server that gives Claude Desktop persistent Layer 2 memory through a small family of memory-aware tools.
 
-My general conventions — code commenting density, commit-message style, and so on — are in `CLAUDE.md` at the root of this repo. Follow them. **Caveat:** that file is a *partial stand-in* assembled from my known preferences, because my authoritative global `~/.claude/CLAUDE.md` lives on my local machine and is not present in this VM. Treat the commenting-density rule in it as firm regardless: aim for nearly as many lines of explanatory comment as lines of code. This prompt only states the things that are *specific to this task* and the decisions I've already made about scope.
+My general conventions — commenting style, source formatting, and so on — are in `CLAUDE.md` at the root of this repo. Follow them. That file is a faithful **extract** of my authoritative global `~/.claude/CLAUDE.md`, limited to the conventions that apply in this cloud VM (the Windows/Cygwin-local rules were omitted as inapplicable here). In particular, write thoroughly-commented code per the comment rules there: complete-sentence comments on the line *above* the code, explaining rationale rather than restating the code, and **no** comments on trivial lines such as imports. This prompt only states the things that are *specific to this task* and the decisions I've already made about scope.
 
 ---
 

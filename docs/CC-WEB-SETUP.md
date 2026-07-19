@@ -12,9 +12,9 @@ asynchronously — no need to keep a local machine powered on.
 - `docs/design-spec/` — a read-only working copy of the authoritative design
   docs from `fpl9000/ai-skills`. Claude Code reads these in place. They are
   **reference only** and should not be modified or shipped.
-- `CLAUDE.md` — a partial stand-in for the global coding conventions. **Replace
-  it** with the authoritative `~/.claude/CLAUDE.md` content before (or at the
-  start of) the run.
+- `CLAUDE.md` — the coding conventions for this build: a faithful extract of the
+  authoritative global `~/.claude/CLAUDE.md`, limited to what applies in the
+  Linux VM (Windows/Cygwin-local rules omitted).
 - `docs/CC-WEB-SETUP.md` — this file.
 
 ## What Claude Code will add (the deliverable)

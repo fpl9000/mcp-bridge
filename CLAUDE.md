@@ -1,40 +1,59 @@
-# Conventions for the `mcp-bridge` repo
+# Coding conventions for the `mcp-bridge` repo
 
-> **PARTIAL STAND-IN — please replace.** This file is a best-effort
-> reconstruction of Fran's coding conventions, assembled from stated
-> preferences. It is **not** the authoritative `~/.claude/CLAUDE.md` that lives
-> on Fran's local machine (that file is not present in this cloud VM). Where this
-> file and the real global conventions differ, the real ones win. Fran intends to
-> paste the authoritative content over this file.
+> Derived from Fran Litterio's authoritative `~/.claude/CLAUDE.md`. This copy
+> keeps only the **environment-independent** conventions that apply when building
+> this repo in the Claude Code on the web Linux VM. Sections of the original that
+> are specific to Fran's local Windows + Cygwin machine are **omitted here because
+> they do not apply in this cloud VM**: the OS environment, Cygwin pathname
+> handling, the `es`/Everything search tool, the two home directories,
+> Python-interpreter selection, the Bash and AutoHotkey scripting rules, and the
+> local "git needs no credentials / SSH is configured" note (in this VM the shell
+> is Linux and git authentication is handled by the environment's proxy). For
+> anything environment-specific, follow `IMPLEMENTATION-PROMPT.md`.
 
-## Code commenting
+## File encoding and newlines
 
-- Comment **densely**: aim for nearly as many lines of comment as lines of code.
-- Comments should explain the *why* — the intent, the constraint, the non-obvious
-  reason — not merely restate what the code literally does.
-- A short explanatory remark is preferred over assuming the reader already
-  understands. Err toward over-explaining rather than terseness.
+- New files use UTF-8 encoding (no BOM).
+- New files use UNIX-style newlines (a single line-feed).
+- When modifying an existing file, match its existing encoding and newline
+  convention; never convert one to the other.
 
-## Commits
+## Indentation
 
-- Group work into a handful of **logically coherent commits** along architectural
-  seams, so the history can be reviewed chunk by chunk.
-- Do **not** produce one giant catch-all commit, and do **not** leave noisy
-  "wip" history.
-- Commit messages are descriptive and explain the *why* of the change, not just
-  the *what*.
-- Prefer pull requests as durable review checkpoints.
+- Use spaces for indentation, never tabs — in source code, markdown, and text.
+- In a file that already mixes tabs and spaces, use spaces for any new
+  indentation but do not convert the existing tabs to spaces.
 
-## Go specifics for this project
+## Source code style
 
-- Pure Go, no CGO, no external C libraries. The bridge must produce a single
-  static binary.
-- `gofmt` must report no files; `go vet ./...` must be clean. Watch `copylocks`
-  in particular — the memory mutex is passed by pointer, never copied by value.
-- The shippable artifact targets Windows (`GOOS=windows GOARCH=amd64`), since
-  Claude Desktop runs on Windows 11.
+- Keep source lines under 100 columns wide.
+- Avoid single-character identifiers. In loops, use meaningful names such as
+  `index`, `counter`, or `loopCount`.
 
-## Prose (README, docs, comments)
+## Comments (Fran wants thoroughly commented code)
 
-- Precise prose that is not too terse. It is better to include an explanatory
-  remark than to assume the reader understands everything.
+- Always write well-commented source code.
+- Comments are complete sentences.
+- Put a comment on the line *above* the code it refers to, not on the same line.
+  A same-line comment is acceptable only when it is very short, and such a short
+  comment is exempt from the complete-sentence rule.
+- Comments explain the *purpose and rationale* of the code — the "why" — rather
+  than restating what the code plainly does.
+- Do **not** comment trivial code, such as `import` statements or trivial local
+  variable initialization, unless the comment explains something a developer
+  genuinely needs to know.
+- Do not address the user through code comments.
+
+## Markdown (e.g. `README.md`, `skill/SKILL.md`)
+
+- Long lines are fine; markdown renderers wrap them.
+- Do not use `<br/>` for line breaks; use two trailing spaces at end of line.
+- When creating a new markdown document, list Fran Litterio as the author.
+
+## Building
+
+- The shippable executable is a Windows binary, so its name ends in `.exe`
+  (`mcp-bridge.exe`).
+- Note this is a **console / stdio** MCP server, not a graphical app: do **not**
+  pass `-ldflags "-H windowsgui"`. That flag suppresses the console window, which
+  would break the stdio transport the bridge speaks over.
