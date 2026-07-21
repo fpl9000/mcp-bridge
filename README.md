@@ -144,6 +144,11 @@ it writes a final state checkpoint and exits.
 
 `skill/SKILL.md` is the companion Claude Desktop skill that teaches Claude
 *when* to read and write memory using these tools — conversation-start
-protocol, write triggers, stale-content handling, and error recovery. Package
-it as a `.zip` containing just that file and upload it via Claude Desktop >
-Settings > Capabilities.
+protocol, write triggers, stale-content handling, and error recovery. It
+carries YAML frontmatter (`name`, `description`) that lets Claude Desktop index
+the skill and decide when to invoke it. Package it as a `.zip` whose single
+top-level entry is a folder named to match the skill's `name`
+(`stateful-memory/SKILL.md`) — Claude Desktop's uploader expects a skill
+*folder*, not a bare file — and upload it via Claude Desktop > Customize >
+Skills > "+" > "Upload a skill". Keep the `.zip` extension; the `.skill`
+extension is only what Claude Desktop produces when you *download* a skill.
