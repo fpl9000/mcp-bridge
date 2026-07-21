@@ -1,3 +1,8 @@
+---
+name: stateful-memory
+description: Persistent memory that survives across conversations, accessed through the bridge's memory tools. Use it at the START of every conversation to load durable context about the user, their projects, and shared history (memory_start_conversation, memory_get_core, memory_get_index, memory_get_block), and DURING the conversation to record or update that context as it emerges (memory_write_core, memory_write_block, memory_append_block, memory_append_episodic). Invoke whenever you need to recall what you know about the user or persist anything worth remembering next time.
+---
+
 # Stateful Agent Memory Skill
 
 You have access to a persistent memory system that survives across conversations
