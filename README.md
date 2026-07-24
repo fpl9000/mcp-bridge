@@ -146,7 +146,11 @@ it writes a final state checkpoint and exits.
 *when* to read and write memory using these tools — conversation-start
 protocol, write triggers, stale-content handling, and error recovery. It
 carries YAML frontmatter (`name`, `description`) that lets Claude Desktop index
-the skill and decide when to invoke it. Package it as a `.zip` whose single
+the skill and decide when to invoke it. **Keep `description` at or under 200
+characters** — Claude.ai's uploader caps it there (the Agent Skills spec allows
+1024), and an over-length description is silently truncated from the end rather
+than rejected, quietly removing the trigger wording that governs invocation.
+Package it as a `.zip` whose single
 top-level entry is a folder named to match the skill's `name`
 (`stateful-memory/SKILL.md`) — Claude Desktop's uploader expects a skill
 *folder*, not a bare file — and upload it via Claude Desktop > Customize >
