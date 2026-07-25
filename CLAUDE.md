@@ -1,16 +1,5 @@
 # Coding conventions for the `mcp-bridge` repo
 
-> Derived from Fran Litterio's authoritative `~/.claude/CLAUDE.md`. This copy
-> keeps only the **environment-independent** conventions that apply when building
-> this repo in the Claude Code on the web Linux VM. Sections of the original that
-> are specific to Fran's local Windows + Cygwin machine are **omitted here because
-> they do not apply in this cloud VM**: the OS environment, Cygwin pathname
-> handling, the `es`/Everything search tool, the two home directories,
-> Python-interpreter selection, the Bash and AutoHotkey scripting rules, and the
-> local "git needs no credentials / SSH is configured" note (in this VM the shell
-> is Linux and git authentication is handled by the environment's proxy). For
-> anything environment-specific, follow `IMPLEMENTATION-PROMPT.md`.
-
 ## File encoding and newlines
 
 - New files use UTF-8 encoding (no BOM).
