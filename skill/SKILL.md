@@ -38,6 +38,13 @@ call `memory_start_conversation` to get a fresh handle, then retry the operation
 
 At the start of every conversation, BEFORE responding to the user's first message:
 
+0. If the memory tools are not directly callable, they are deferred rather than
+   absent — some clients leave MCP tool definitions out of the initial context and
+   load them on demand to save tokens. Search for them first (for example, a
+   `tool_search` query of `memory`, which matches all eight at once because every
+   bridge tool shares the `memory_` prefix), then continue with step 1. Skip this
+   step whenever the tools are already loaded; it is a fallback, not a routine
+   preamble.
 1. Call `memory_start_conversation` to get a handle, the current core content,
    and the derived index — all in one call.
 2. If any index entry is relevant to the user's opening message, load it with
