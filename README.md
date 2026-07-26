@@ -53,6 +53,24 @@ Run the test suite with:
 go test ./...
 ```
 
+### Building a release payload
+
+The commands above are the manual pieces. For an actual deployment, run `./build-release.sh`, which does all of it and assembles the complete payload the installer expects:
+
+```sh
+./build-release.sh              # vet, test, cross-compile, package, stage
+./build-release.sh --no-test    # skip vet and the test suite
+./build-release.sh --clean      # remove generated artifacts and exit
+```
+
+It cross-compiles `deploy/mcp-bridge.exe`, packages `skill/SKILL.md` into `deploy/stateful-memory.zip` with the folder structure Claude Desktop requires, and copies `bridge-config.yaml` into `deploy/`. Together with the two tracked files already in that directory — `install-bridge.sh` and the seed `core.md` — the result is a self-contained payload: copy `deploy/` to the Windows machine and run `install-bridge.sh` from inside it.
+
+Along the way the script verifies that the binary really is a Windows PE32+ executable (a failed cross-compilation otherwise yields a Linux ELF binary with an `.exe` name), that the skill archive contains `stateful-memory/SKILL.md` rather than a bare `SKILL.md` at the archive root, and that `SKILL.md` still carries YAML frontmatter with a `name:` field. The last two are regression guards: both of those defects upload to Claude Desktop without any complaint and then silently fail to load.
+
+Re-run the script after any change to `skill/SKILL.md`, since the skill archive is a build artifact and the copy installed in Claude Desktop is only refreshed by a manual re-upload.
+
+The three generated artifacts are gitignored; the tracked contents of `deploy/` are only the installer and the seed `core.md`.
+
 ## Configuration
 
 The bridge reads a YAML configuration file. The file location is resolved in

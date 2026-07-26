@@ -5,3 +5,9 @@
 
 # Bridge runtime state, if ever written into the working tree during local runs.
 .bridge-state.json
+
+# Release artifacts staged into deploy/ by build-release.sh. The installer and the
+# seed core.md in that directory are tracked sources; these three are generated on
+# every build, so only their sources belong under version control.
+/deploy/stateful-memory.zip
+/deploy/bridge-config.yaml
