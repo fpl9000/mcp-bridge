@@ -14,6 +14,8 @@
   - [5.4 Memory Write Triggers](#54-memory-write-triggers)
   - [5.5 Memory Read Triggers](#55-memory-read-triggers)
   - [5.6 Reconciliation with Layer 1](#56-reconciliation-with-layer-1)
+  - [5.7 Frontmatter Constraints and Portability](#57-frontmatter-constraints-and-portability)
+  - [5.8 Bootstrapping via an Unconditionally-Loaded Channel](#58-bootstrapping-via-an-unconditionally-loaded-channel)
 
 ## 5. Memory Skill
 
@@ -21,114 +23,44 @@ The memory-aware tool redesign makes this the most-simplified chapter of the des
 
 ### 5.1 Skill Packaging
 
-The memory skill is a Claude Desktop skill packaged as a .zip file containing a single `SKILL.md` file. It does not contain scripts (all operations use the bridge's MCP tools). The .zip is uploaded via Claude Desktop > Settings > Capabilities.
+The memory skill is installed in one of two ways, depending on the client
+([Chapter 7](stateful-agent-design-chapter7.md#7-build-and-deployment)). Claude Code reads skills
+directly from the filesystem, so installation there is a file copy and the packaging rules below
+do not apply. Claude Desktop takes an uploaded archive, described here.
+
+The memory skill is a Claude Desktop skill packaged as a `.zip` file. Claude Desktop's uploader expects the archive to contain a single top-level *folder* whose name matches the skill's `name`, with `SKILL.md` inside it — not a bare `SKILL.md` at the archive root (a mismatched or missing folder is a documented upload-failure cause). The skill contains no scripts (all operations use the bridge's MCP tools). Upload it via Claude Desktop > Customize > Skills > "+" > "Upload a skill". Keep the `.zip` extension; `.skill` is only the extension Claude Desktop produces when you *download* an existing skill.
 
 ```
 stateful-memory.zip
-└── SKILL.md           # Instructions for Layer 2 memory lifecycle
+└── stateful-memory/       # Folder name matches the skill's `name` (SKILL.md frontmatter)
+    └── SKILL.md           # Instructions for Layer 2 memory lifecycle
 ```
 
 **Why no scripts?** All memory operations are performed via the bridge's memory-aware MCP tools. No Python or shell scripts are needed. This eliminates dependency management and makes the skill trivially portable.
 
 ### 5.2 SKILL.md Content
 
-The SKILL.md below is the complete skill instruction file. It is the primary artifact that guides Claude's memory behavior. Note its brevity relative to the v1 skill: there are no file paths, no session-ID bookkeeping, no branch-handling instructions, and no index-maintenance rules — the bridge owns all of that.
+**The skill file is not reproduced here. Its single source of truth is [`skill/SKILL.md`](https://github.com/fpl9000/mcp-bridge/blob/main/skill/SKILL.md) in the `fpl9000/mcp-bridge` repository** (note that repository is private, so the link resolves only for its owner).
+
+Earlier revisions of this section carried a complete copy of the file. That arrangement put the same artifact under version control in two repositories, with no mechanism keeping them equal, and the two had in fact already diverged in both directions: the copy here was a superset in one place (it retained the maintenance instructions preserved below) and stale in another (it predated changes made directly to the shipped file). Prose about the skill belongs in a design document; the skill itself is a build input, it is packaged by `build-release.sh`, and it is versioned alongside the bridge whose tools it describes. It lives there.
+
+What this section still owns is the *design intent* the file has to satisfy. Three constraints are normative and are stated elsewhere in this document rather than in the file itself:
+
+- **Packaging** — [Section 5.1](#51-skill-packaging) governs the archive layout and the installation path for each client.
+- **Frontmatter** — [Section 5.7](#57-frontmatter-constraints-and-portability) governs the `name` and `description` fields, including the 200-character budget on `description` and the reasoning behind it.
+- **Bootstrapping** — [Section 5.8](#58-bootstrapping-via-an-unconditionally-loaded-channel) governs how the skill comes to be invoked at the start of a conversation in the first place.
+
+In outline, the file covers the memory model (core, blocks, the derived index, the episodic log), conversation handles and their recovery, the conversation-start protocol, read and write triggers during a conversation, block-creation rules, memory-quality guidelines, error handling, and end-of-conversation behavior. Sections 5.3 through 5.6 below give the design rationale for each of those; the file is the operative statement of them.
+
+#### Deferred content
+
+A shipped `SKILL.md` must never instruct Claude to call a tool that its build does not register — an instruction to invoke a nonexistent tool is worse than a missing instruction, because the model will attempt the call. The minimal Layer 2 build registers eight tools and defers `memory_run_maintenance`, along with the sub-agent machinery its semantic merge requires, so the file correctly says nothing about maintenance today.
+
+The following text is held here, outside the file, and is to be added to it when `memory_run_maintenance` is implemented — not before. It is recorded in this document precisely because it must *not* live in the shipped file yet, which makes this the one part of the skill's content that the design spec still holds directly.
+
+A `## Memory Maintenance` section, placed between `### Memory quality guidelines` and `## Error Handling`:
 
 ```markdown
-# Stateful Agent Memory Skill
-
-You have access to a persistent memory system that survives across conversations
-and gives you deep context about the user, their projects, and your shared history.
-You interact with it exclusively through the bridge's memory tools. You never need
-to know how or where memory is stored.
-
-## The Memory Model
-
-- **Core** — a compact always-loaded summary: who the user is, active projects,
-  key preferences. Read it with `memory_get_core`; replace it with `memory_write_core`.
-- **Blocks** — named content documents (e.g., `project-foo`, `decisions`,
-  `reference-go-patterns`). Read with `memory_get_block`, write with
-  `memory_write_block`, append with `memory_append_block`.
-- **The index** — a list of every block's name, one-line summary, and last-updated
-  time, returned by `memory_get_index`. Use it to decide which blocks to load.
-- **The episodic log** — a chronological record of significant conversations.
-  Add entries with `memory_append_episodic`; past months appear in the index as
-  `episodic-YYYY-MM` blocks.
-
-## Handles
-
-Call `memory_start_conversation` once at the start of any conversation that will
-use memory. It returns a `handle` — an opaque token identifying this conversation.
-Pass the handle to every memory tool call, always using the most recently returned
-value (every memory tool response echoes it back).
-
-If any memory tool returns a handle error, the recovery is always the same:
-call `memory_start_conversation` to get a fresh handle, then retry the operation.
-
-## Conversation Start Protocol
-
-At the start of every conversation, BEFORE responding to the user's first message:
-
-1. Call `memory_start_conversation` to get a handle.
-2. Call `memory_get_core(handle)`.
-3. Call `memory_get_index(handle)`.
-4. If any index entry is relevant to the user's opening message, load it with
-   `memory_get_block(handle, block_name)`.
-5. Respond to the user, informed by your loaded context.
-
-If core comes back empty, this is a first-run scenario: write an initial core with
-`memory_write_core`, seeded from your built-in memory and the current conversation.
-
-## During the Conversation
-
-### Reading
-- When the conversation shifts to a topic listed in the index that you haven't
-  loaded, read that block.
-- When the user asks "what do you remember about X?", check the index for matching
-  blocks and read them. If the index summaries are too terse to identify the right
-  block, read the most plausible candidates. Combine with your built-in (Layer 1)
-  memory and respond naturally, as if recalling from your own knowledge.
-
-### Stale content
-A `memory_get_core` or `memory_get_block` response may include
-`changed_since_last_read: true`. This means the content has been updated since you
-last read it. Treat any earlier reasoning that depended on the previous version as
-potentially stale — double-check anything you concluded from it before relying on it.
-
-### Writing
-Write memory updates incrementally as significant information emerges. Do NOT
-accumulate changes and batch-write at the end — conversations can end abruptly.
-
-- **Update core** (`memory_write_core`) when a project starts or significantly
-  changes status, or when key facts about the user change. Provide the COMPLETE
-  document (full replacement). Keep core under ~1,000 tokens; move detail to blocks.
-- **Update a block** (`memory_write_block`) when significant project decisions are
-  made, technical details worth remembering emerge, or the user shares information
-  useful in future conversations. Provide the COMPLETE content (full replacement).
-  The optional `summary` parameter sets the block's one-line index description:
-  REQUIRED when creating a new block; omit it on updates unless the summary needs
-  to change.
-- **Append to a block** (`memory_append_block`) when adding to a running list or
-  log-style block without rewriting it.
-- **Append to the episodic log** (`memory_append_episodic`) periodically during
-  long conversations, at natural breakpoints, and when the user is wrapping up.
-  Format: `## YYYY-MM-DD — Brief Title` followed by a 2–5 sentence summary.
-
-### Creating new blocks
-If a conversation introduces a significant new project or topic that doesn't fit an
-existing block, create one with `memory_write_block` (a `summary` is required):
-- Projects: `project-<name>`
-- Reference material: `reference-<topic>`
-Do NOT create blocks for trivial or one-off topics — those go in the episodic log.
-
-### Memory quality guidelines
-- Be concise. Memory content is loaded into your context window — every token counts.
-- Prefer facts and decisions over process narrative. "Chose Go for single-binary
-  deployment" is better than "We discussed several languages and eventually...".
-- Date-stamp significant decisions and status changes.
-- Write summaries that will let a future conversation decide whether to load the
-  block — name the topic and its key contents, not just a title.
-
 ## Memory Maintenance
 
 If the user asks you to run memory maintenance, merge memory, consolidate memory,
@@ -139,38 +71,15 @@ concurrent conversations will briefly block while it runs — that's expected, a
 acceptable because the user asked for it. If the response has `more_pending: true`,
 call it again to continue until `more_pending` is false, then report the total
 number of merged blocks to the user.
-
-## Error Handling
-
-Memory tools may return `{ ok: false, error: { code, message } }`. The `message`
-is written to be self-explanatory — read it and act on it. Common patterns:
-
-- `INVALID_HANDLE` or `MALFORMED_HANDLE` → call `memory_start_conversation`, retry.
-- `SUMMARY_REQUIRED` → retry with a one-line `summary` argument.
-- `BLOCK_NOT_FOUND` → check the name against the index; create the block if creation
-  was the intent.
-- `MAINTENANCE_IN_PROGRESS` → memory is being consolidated; retry shortly.
-- `INTERNAL_ERROR` → mention the failure to the user; do not retry blindly.
-
-For any other code, follow the message's instructions.
-
-## Conversation End
-
-If the user says goodbye, thanks you, or the conversation is clearly winding down:
-
-1. Persist any pending memory updates (core, relevant blocks).
-2. Append an episodic entry summarizing the conversation.
-3. You do not need to announce that you're saving memory — just do it.
-
-## User Questions and Corrections
-
-If the user asks to correct or delete a memory: read the relevant block (or core),
-make the correction, write it back, and acknowledge.
-
-If the user asks to see their memory: show them the relevant content from the tools.
-You can mention that the underlying storage is plain markdown files on their machine
-that they can edit directly — the bridge will pick up their edits.
 ```
+
+And a bullet added to the `## Error Handling` list:
+
+```markdown
+- `MAINTENANCE_IN_PROGRESS` → memory is being consolidated; retry shortly.
+```
+
+When comparing a deployed `SKILL.md` against the repository copy, check the build's registered tool list before treating a difference as drift.
 
 ### 5.3 Conversation Lifecycle
 
@@ -181,12 +90,11 @@ Conversation Start
 │
 ├─ 1. Skill instructions loaded into context (automatic, ~400 tokens)
 ├─ 2. Layer 1 memory loaded into context (automatic, ~500–2,000 tokens)
-├─ 3. Call memory_start_conversation → receive handle (echoed on every later call)
-├─ 4. memory_get_core(handle) (~500–1,000 tokens)
-├─ 5. memory_get_index(handle) (~300–800 tokens)
-├─ 6. Evaluate user's first message against index entries
-├─ 7. memory_get_block(handle, name) for any relevant blocks (varies)
-└─ 8. Respond to user's first message
+├─ 3. Call memory_start_conversation → receive handle (echoed on every later
+│       call), core (~500–1,000 tokens), and the derived index (~300–800 tokens)
+├─ 4. Evaluate user's first message against index entries
+├─ 5. memory_get_block(handle, name) for any relevant blocks (varies)
+└─ 6. Respond to user's first message
 │
 Conversation Active
 │
@@ -262,3 +170,105 @@ spawn_agent(
 **Step 3:** The primary agent applies fixes:
 - **Layer 1 fixes:** Add steering edits via the `memory_user_edits` tool. These are incorporated by Anthropic's nightly regeneration (~24-hour lag).
 - **Layer 2 fixes:** Update memory via `memory_write_core` / `memory_write_block` (immediate effect).
+
+### 5.7 Frontmatter Constraints and Portability
+
+The `description` field is subject to **three different documented limits**, depending on how the
+skill reaches the agent. Getting this wrong is a silent failure, so the constraints are recorded
+here rather than left to be rediscovered.
+
+| Surface | `name` | `description` | Nature of the limit |
+|---|---|---|---|
+| Agent Skills specification / Claude API skill upload | 64 chars | **1024 chars** | Hard validation; the Create Skill endpoint rejects a bundle that exceeds it |
+| Claude.ai skill upload (including Claude Desktop, which is a Claude.ai client) | 64 chars | **200 chars** | Documented product limit, tighter than the specification |
+| Claude Code (filesystem-installed skills) | 64 chars | No separate documented cap beyond the specification's 1024 | Subject instead to a context budget across the whole skill listing, which can drop or truncate descriptions when many skills are installed |
+
+**Design decision: the `description` targets 200 characters or fewer.**
+
+The reasoning is that 200 is the tightest documented ceiling among the surfaces this system may
+plausibly be delivered through, and a description authored to the 1024-character specification
+limit cannot be uploaded through the Claude.ai Skills UI without being edited first. Since the
+Stateful Agent system may eventually be packaged for general release rather than remaining a
+personal deployment, the skill must install unmodified on every surface. Designing to the tightest
+ceiling costs a little expressiveness once; designing to the loosest costs a manual edit on every
+constrained install, forever.
+
+**On enforcement.** In July 2026 the 570-character `description` this design previously specified
+was observed reaching a Claude.ai session's skill listing fully intact, so the 200-character limit
+is evidently not enforced uniformly on every upload path today. That observation is deliberately
+*not* treated as license to exceed it. Non-enforcement is not a contract: it can be tightened at
+any time, and — see below — the failure it would produce is invisible.
+
+**Why truncation is the dangerous failure mode.** A description that exceeds a limit is not
+rejected with an error the author will notice; it is silently cut, from the end. The trailing
+content of a description is where "and use it when…" trigger vocabulary conventionally sits, so
+truncation removes precisely the part that governs invocation while leaving the skill visibly
+installed and apparently healthy. The skill simply stops being selected in cases it used to cover,
+with nothing anywhere reporting why. Two consequences follow:
+
+1. **Front-load the triggers.** The earliest words must carry the conditions under which the skill
+   applies, so that any truncation removes elaboration rather than meaning.
+2. **Prefer trigger coverage to elegance.** Within the budget, spend characters on the vocabulary a
+   request is likely to use, not on describing the mechanism. The mechanism is what the body is
+   for.
+
+**Known limitation.** The frontmatter `description` is metadata consulted to decide whether a skill
+is *relevant*, which is not the same as an instruction that is reliably *executed*. A conversation
+in which the skill's start-of-conversation directive was present in the description but
+`memory_start_conversation` was nonetheless never called has been observed. Shortening the
+description neither causes nor cures this; the reliability of start-of-conversation initialization
+is tracked separately as an open question
+([Chapter 11](stateful-agent-design-chapter11.md#11-open-questions)) and is out of scope for this
+section, which governs only the field's length and content.
+
+### 5.8 Bootstrapping via an Unconditionally-Loaded Channel
+
+[Section 5.7](#57-frontmatter-constraints-and-portability) established that the skill `description`
+is metadata used to decide whether a skill is *relevant*, not a mechanism that guarantees an
+instruction is *executed* — and OQ#18
+([Chapter 11](stateful-agent-design-chapter11.md#111-remaining-open-questions)) records a real
+conversation in which the description was present in the skill listing and
+`memory_start_conversation` was nonetheless never called. Relying on the description alone to make
+the agent bootstrap memory is therefore unreliable by construction: the directive that governs the
+single most important action in the whole system — the mandatory first call that loads `core.md`
+and the block index — lives in a field whose job is discovery, and it is only elaborated in the
+skill body once the skill has already been judged relevant.
+
+**The resolution is to place the bootstrap directive additionally in a channel that is loaded
+verbatim into every conversation, with no relevance gating.** This does not replace the skill: the
+skill's conversation-start protocol ([Section 5.3](#53-conversation-lifecycle)) and its description
+remain exactly as specified, the description continuing to do the discovery job it does well. What
+changes is that *execution reliability no longer depends on relevance matching* — the unconditional
+channel carries the imperative, and the skill carries the detail. The two reinforce each other; the
+belt does not need the suspenders to be present, but both cost little and the failure mode being
+guarded against is silent.
+
+Each client has such a channel:
+
+- **Claude Desktop:** the user's preferences (Settings → Profile personalization), which are loaded
+  into every conversation. The wording below belongs there. (This is the same mechanism that already
+  reliably steers other cross-conversation behavior in this deployment, such as the GitHub and
+  Bluesky conventions.)
+- **Claude Code:** the auto-loaded `CLAUDE.md`. The wording, and an important sub-agent-safety
+  caveat, are given in [Section 6.5](stateful-agent-design-chapter6.md#65-claudemd-recommendations).
+
+**Proposed Claude Desktop user-preferences wording:**
+
+> At the start of every conversation, before doing anything else, call `memory_start_conversation`
+> to load my stored memory. It returns a handle together with my core memory and the block index;
+> use that handle on every subsequent memory tool call. If any memory tool reports an unknown or
+> invalid handle, call `memory_start_conversation` again to obtain a fresh handle and retry. This is
+> the only way to mint a handle — there is no other initialization path.
+
+The final sentence is deliberate: it reflects the reaffirmed decision
+([Chapter 3, Sections 3.3/3.14](stateful-agent-design-chapter3.md#314-handle-management)) that
+`memory_start_conversation` is the *sole* handle-minting mechanism and that the bridge performs no
+auto-initialization. Stating that plainly in the channel the agent actually reads removes any
+temptation to expect a handle to appear by some other means, and it makes the uniform error-recovery
+procedure ("get a new handle, retry") the obvious response to any handle error.
+
+**What this section does not do.** It does not weaken or bypass the mandatory-first-call invariant;
+it strengthens the odds that the invariant is honored by putting the instruction where it will be
+read every time. And it does not make initialization automatic — an agent that ignores both the
+unconditional channel and the skill still fails to bootstrap, and that residual case is exactly what
+OQ#18 leaves open pending measurement (see [Chapter 8, Section 8.2.8](stateful-agent-design-chapter8.md#828-compliance-monitoring-script)).
