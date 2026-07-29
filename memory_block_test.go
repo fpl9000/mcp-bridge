@@ -257,7 +257,10 @@ func TestAppendBlock_AppendsToExisting(t *testing.T) {
 	}
 
 	getResponse := callToolJSON(t, b.HandleMemoryGetBlock, map[string]any{"handle": handle, "block_name": "log"})
-	if content, _ := getResponse["content"].(string); content != "first line\nsecond line" {
+	// The caller's own leading newline already places the appended text at the
+	// start of a line, so no separator is inserted. The trailing newline is the
+	// append path's outbound invariant, which keeps the next append well-formed.
+	if content, _ := getResponse["content"].(string); content != "first line\nsecond line\n" {
 		t.Fatalf("unexpected appended content: %q", content)
 	}
 
@@ -329,5 +332,53 @@ func TestAtomicWriteFile_CleansUpTempFileOnFailure(t *testing.T) {
 		if strings.Contains(entry.Name(), ".tmp.") {
 			t.Fatalf("temp file %q was not cleaned up after a failed write", entry.Name())
 		}
+	}
+}
+
+// TestAppendBlock_StartsOnNewLineAfterBodyWithoutTrailingNewline covers the
+// newline invariant in the shared append path: appended text must begin at the
+// start of a line even when the existing block body ends mid-line.
+func TestAppendBlock_StartsOnNewLineAfterBodyWithoutTrailingNewline(t *testing.T) {
+	b := newTestBridge(t)
+	handle := startConversation(t, b)
+
+	callToolJSON(t, b.HandleMemoryWriteBlock, map[string]any{
+		"handle": handle, "block_name": "newline-test",
+		"summary": "Newline invariant fixture", "content": "First line without newline."})
+
+	callToolJSON(t, b.HandleMemoryAppendBlock, map[string]any{
+		"handle": handle, "block_name": "newline-test", "content": "## Appended heading"})
+
+	response := callToolJSON(t, b.HandleMemoryGetBlock,
+		map[string]any{"handle": handle, "block_name": "newline-test"})
+	content, _ := response["content"].(string)
+
+	if strings.Contains(content, "newline.## Appended heading") {
+		t.Fatalf("appended text was welded onto the previous line: %q", content)
+	}
+	if !strings.Contains(content, "\n## Appended heading") {
+		t.Fatalf("expected appended text to start on a new line, got: %q", content)
+	}
+}
+
+// TestAppendBlock_LeavesTrailingNewline covers the outbound half of the same
+// invariant: after an append the block ends with a newline, so the next append
+// starts from a well-formed state.
+func TestAppendBlock_LeavesTrailingNewline(t *testing.T) {
+	b := newTestBridge(t)
+	handle := startConversation(t, b)
+
+	callToolJSON(t, b.HandleMemoryWriteBlock, map[string]any{
+		"handle": handle, "block_name": "trailing-test",
+		"summary": "Trailing newline fixture", "content": "Body."})
+	callToolJSON(t, b.HandleMemoryAppendBlock, map[string]any{
+		"handle": handle, "block_name": "trailing-test", "content": "Appended without newline."})
+
+	response := callToolJSON(t, b.HandleMemoryGetBlock,
+		map[string]any{"handle": handle, "block_name": "trailing-test"})
+	content, _ := response["content"].(string)
+
+	if !strings.HasSuffix(content, "\n") {
+		t.Fatalf("expected block to end with a newline, got: %q", content)
 	}
 }
