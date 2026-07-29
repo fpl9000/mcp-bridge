@@ -132,8 +132,13 @@ func TestConcurrency_WriteAndAppendOnDifferentBlocks(t *testing.T) {
 		t.Fatalf("expected block-x to contain its written content, got: %q", bodyX)
 	}
 
+	// This assertion previously expected mid-line continuation ("initial
+	// appended"). The append path now guarantees appended text starts on a new
+	// line, which makes continuing the block's last line impossible by design;
+	// the concurrency property under test — that the two blocks do not
+	// interfere — is unaffected.
 	_, bodyY, _ := splitFrontmatter([]byte(readFileString(t, b.blockPath("block-y"))))
-	if bodyY != "initial appended" {
+	if bodyY != "initial\n appended\n" {
 		t.Fatalf("expected block-y to contain the appended content, got: %q", bodyY)
 	}
 }

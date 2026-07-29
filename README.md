@@ -27,7 +27,7 @@ on-disk layout entirely, and the LLM never sees it.
 | `memory_get_block` | Return a block's body content by name. |
 | `memory_write_block` | Replace a block's content, or create a new block (a summary is required on creation). |
 | `memory_append_block` | Append text to an existing block (never creates one). |
-| `memory_append_episodic` | Append a dated entry to the current month's episodic log; the bridge handles file creation and month rotation. |
+| `memory_append_episodic` | Append a dated entry to the current month's episodic log; the bridge composes the dated heading from a `title` argument and handles file creation and month rotation. |
 
 Every memory tool takes `handle` as a required first parameter and echoes it
 back in every response, success or failure.

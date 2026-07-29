@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -62,7 +63,33 @@ func appendToBlockFile(path string, text string, summaryMaxLength int) error {
 
 	fm.UpdatedAt = time.Now().UTC()
 
-	fileBytes, err := composeBlockFile(fm, body+text)
+	// Guarantee the appended text begins at the start of a line. Without this,
+	// an append whose first line is a markdown heading gets welded onto the
+	// final line of the previous entry, where a "##" no longer at column zero
+	// stops being a heading at all. The caller cannot reliably prevent this on
+	// its own: deciding whether a leading newline is needed requires knowing
+	// the block's current trailing bytes, which a caller that only appends has
+	// never read. Doing it here also repairs blocks already stored without a
+	// trailing newline.
+	//
+	// A caller that supplies its own leading newline already satisfies the
+	// guarantee, so no second newline is inserted; that would turn every such
+	// append into a gratuitous blank line. Note the consequence: text can no
+	// longer be appended mid-line to continue the block's last line.
+	if len(body) > 0 && !strings.HasSuffix(body, "\n") && !strings.HasPrefix(text, "\n") {
+		body += "\n"
+	}
+
+	combined := body + text
+
+	// Re-establish a trailing newline on the way out, so the next append to
+	// this block starts from a well-formed state regardless of whether the
+	// text just appended happened to end with one.
+	if !strings.HasSuffix(combined, "\n") {
+		combined += "\n"
+	}
+
+	fileBytes, err := composeBlockFile(fm, combined)
 	if err != nil {
 		return err
 	}
