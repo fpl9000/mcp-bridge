@@ -16,6 +16,7 @@ const (
 	ErrCodeInvalidBlockName = "INVALID_BLOCK_NAME"
 	ErrCodeSummaryRequired  = "SUMMARY_REQUIRED"
 	ErrCodeSummaryTooLong   = "SUMMARY_TOO_LONG"
+	ErrCodeInvalidContent   = "INVALID_CONTENT"
 	ErrCodeInternalError    = "INTERNAL_ERROR"
 )
 

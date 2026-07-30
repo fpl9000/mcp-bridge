@@ -87,7 +87,9 @@ accumulate changes and batch-write at the end — conversations can end abruptly
   log-style block without rewriting it.
 - **Append to the episodic log** (`memory_append_episodic`) periodically during
   long conversations, at natural breakpoints, and when the user is wrapping up.
-  Format: `## YYYY-MM-DD — Brief Title` followed by a 2–5 sentence summary.
+  Pass a short `title` and a 2–5 sentence summary as `content`. The bridge writes
+  the `## YYYY-MM-DD — Title` heading itself from its own clock, so do not put a
+  markdown heading in `content` — an entry that begins with one is rejected.
 
 ### Creating new blocks
 If a conversation introduces a significant new project or topic that doesn't fit an

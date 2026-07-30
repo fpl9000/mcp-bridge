@@ -85,9 +85,9 @@ func RegisterTools(s *server.MCPServer, b *Bridge) {
 
 	s.AddTool(
 		mcp.NewTool("memory_append_block",
-			mcp.WithDescription("Append text to a memory block. The text is appended exactly as "+
-				"provided — include leading newlines if needed for formatting. Never creates a block: "+
-				"use memory_write_block for first creation."),
+			mcp.WithDescription("Append text to a memory block. The bridge guarantees the "+
+				"appended text starts on a new line, so no leading newline is needed. Never "+
+				"creates a block: use memory_write_block for first creation."),
 			mcp.WithString("handle", mcp.Required(), mcp.Description("Handle from memory_start_conversation")),
 			mcp.WithString("block_name", mcp.Required(), mcp.Description("Block name")),
 			mcp.WithString("content", mcp.Required(), mcp.Description("Text to append")),
@@ -99,10 +99,13 @@ func RegisterTools(s *server.MCPServer, b *Bridge) {
 		mcp.NewTool("memory_append_episodic",
 			mcp.WithDescription("Append an entry to the episodic log (the chronological record of "+
 				"significant conversations). The bridge files the entry under the current month "+
-				`automatically. Format the entry as: "## YYYY-MM-DD — Brief Title" followed by a 2-5 `+
-				"sentence summary."),
+				"and writes the dated heading itself. Pass a short title and a 2-5 sentence "+
+				"summary as the body; do not include a markdown heading in content."),
 			mcp.WithString("handle", mcp.Required(), mcp.Description("Handle from memory_start_conversation")),
-			mcp.WithString("content", mcp.Required(), mcp.Description("The entry text to append")),
+			mcp.WithString("title", mcp.Required(), mcp.Description("Short entry title; the bridge "+
+				"renders it as \"## YYYY-MM-DD — Title\" using its own clock")),
+			mcp.WithString("content", mcp.Required(), mcp.Description("The entry body, without a "+
+				"heading line")),
 		),
 		b.HandleMemoryAppendEpisodic,
 	)

@@ -188,7 +188,7 @@ Sub-agents are launched as `claude -p` subprocesses.
 
 ### 4.6 File Format: Episodic Logs
 
-Episodic logs are monthly files (`episodic-YYYY-MM.md`) containing dated entries for each significant conversation. They remain a **distinct concept** from ordinary blocks at the tool surface: the LLM appends entries with `memory_append_episodic(handle, content)` and never computes the current month's name — the bridge selects the target file from the system clock and handles month rotation internally ([Chapter 3, Section 3.12](stateful-agent-design-chapter3.md#312-tool-memory_append_episodic)).
+Episodic logs are monthly files (`episodic-YYYY-MM.md`) containing dated entries for each significant conversation. They remain a **distinct concept** from ordinary blocks at the tool surface: the LLM appends entries with `memory_append_episodic(handle, title, content)` and never computes the current month's name or the entry's dated heading — the bridge selects the target file from the system clock and handles month rotation internally ([Chapter 3, Section 3.12](stateful-agent-design-chapter3.md#312-tool-memory_append_episodic)).
 
 On disk, episodic files live in the blocks directory and carry the standard frontmatter, with a bridge-generated summary. They therefore **appear in the derived index** (e.g., as `episodic-2026-06` with summary "Conversation log for June 2026") and can be read like any block via `memory_get_block`, using the name shown in the index. Each append refreshes the file's `updated_at` so the index reflects the time of the last entry.
 
@@ -212,7 +212,7 @@ Resolved §3.5 (summary contract), §3.6 (index schema), and §3.8 (branch namin
 the update plan. All eleven open questions now closed; rewrite unblocked.
 ```
 
-**Entry format:** Each entry has a heading with date and brief title (`## YYYY-MM-DD — Title`), followed by a short prose summary (2–5 sentences). The summary should capture what was accomplished, any significant decisions, and any artifacts produced. It is deliberately concise — detailed project context belongs in project blocks, not in the episodic log.
+**Entry format:** Each entry has a heading with date and brief title (`## YYYY-MM-DD — Title`), followed by a short prose summary (2–5 sentences). The bridge composes that heading from its own clock and the caller's `title` argument, so the date in the heading cannot disagree with the monthly file the entry is stored in; content that carries its own heading is rejected. The summary should capture what was accomplished, any significant decisions, and any artifacts produced. It is deliberately concise — detailed project context belongs in project blocks, not in the episodic log.
 
 **Appending new entries:** The memory skill instructs Claude to append a new entry before the conversation ends (or incrementally during long conversations) via `memory_append_episodic`. Appends are serialized by the bridge and never create branches ([Chapter 3, Section 3.11](stateful-agent-design-chapter3.md#311-tools-memory_get_block-memory_write_block-memory_append_block)).
 
