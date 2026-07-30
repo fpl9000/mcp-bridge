@@ -48,15 +48,113 @@ type GetIndexResponse struct {
 // blocks directory. It is invalidated explicitly by any bridge-mediated
 // block write (memory_write_block, memory_append_block,
 // memory_append_episodic) and also self-invalidates whenever the blocks
-// directory's own mtime has moved on — the fallback that catches a block
-// file the user created or edited directly outside the bridge (Section
-// 3.10: "invalidated when that handle writes a block or when the blocks
-// directory's most recent mtime changes").
+// directory's observable state has moved on — the fallback that catches a
+// block file the user created, removed, or edited directly outside the
+// bridge (Section 3.10: "invalidated when that handle writes a block or when
+// the blocks directory's most recent mtime changes").
+//
+// Section 3.10's "most recent mtime" is read here as the most recent mtime
+// *among the block files*, not the mtime of the directory inode. The two are
+// not equivalent, and the difference is the whole point: a directory's mtime
+// tracks changes to its set of entries, so it moves when a file is created,
+// renamed, or removed but not when an existing file's contents are rewritten
+// through its existing entry. An editor that saves in place — Emacs with
+// `backup-by-copying` set to t, for instance — produces exactly that
+// undetectable case, and a directory-keyed cache would go on serving the
+// pre-edit index indefinitely.
 type IndexCache struct {
-	mu         sync.Mutex
-	valid      bool
-	index      Index
-	dirModTime time.Time
+	mu          sync.Mutex
+	valid       bool
+	index       Index
+	fingerprint blocksFingerprint
+}
+
+// blocksFingerprint is a cheap summary of everything about the blocks
+// directory that can affect the assembled index, used to decide whether a
+// cached index is still current.
+//
+// Computing it costs one directory read plus a stat per block file, which is
+// far less than the read-and-parse of every file that assembling the index
+// actually requires, so the cache still earns its place.
+type blocksFingerprint struct {
+	// fileCount guards the case where one file is removed and another added
+	// closely enough in time that the maximum mtime is unchanged.
+	fileCount int
+
+	// maxModTime is the most recent mtime among the block files, which is
+	// what catches an in-place rewrite of an existing file.
+	maxModTime time.Time
+
+	// totalSize guards against an edit landing inside the filesystem's
+	// timestamp granularity, which on a coarse filesystem can be a second or
+	// more. It mirrors the ModTime-plus-size pairing that handles.go already
+	// uses for per-file change detection.
+	totalSize int64
+}
+
+// Equal reports whether two fingerprints describe the same directory state.
+// It cannot be written as "==" because time.Time carries a monotonic reading
+// and a Location pointer that may differ between two values representing the
+// same instant, so time.Time.Equal is required.
+func (f blocksFingerprint) Equal(other blocksFingerprint) bool {
+	return f.fileCount == other.fileCount &&
+		f.maxModTime.Equal(other.maxModTime) &&
+		f.totalSize == other.totalSize
+}
+
+// computeBlocksFingerprint summarizes the current state of the blocks
+// directory. A directory that cannot be read yields the zero fingerprint,
+// which simply means the cache treats the state as unchanged from any other
+// unreadable moment; assembleIndex reports the real error on that path.
+func computeBlocksFingerprint(blocksDir string) blocksFingerprint {
+	entries, err := os.ReadDir(blocksDir)
+	if err != nil {
+		return blocksFingerprint{}
+	}
+
+	var fingerprint blocksFingerprint
+
+	for _, entry := range entries {
+		// Fingerprint exactly the set of files that assembleIndex turns into
+		// index rows. Including anything else would invalidate the cache for
+		// changes that cannot alter the index — an editor rewriting its
+		// backup file on every save, for example.
+		if entry.IsDir() || !isBlockFile(entry.Name()) {
+			continue
+		}
+
+		info, infoErr := entry.Info()
+		if infoErr != nil {
+			// The file vanished between ReadDir and Info. Skipping it here
+			// only risks a redundant reassembly, never a stale index, since
+			// its disappearance changes the count.
+			continue
+		}
+
+		fingerprint.fileCount++
+		fingerprint.totalSize += info.Size()
+
+		if info.ModTime().After(fingerprint.maxModTime) {
+			fingerprint.maxModTime = info.ModTime()
+		}
+	}
+
+	return fingerprint
+}
+
+// isBlockFile reports whether a directory entry name is one that assembleIndex
+// will turn into an index row. It exists so that the index and the cache
+// fingerprint cannot drift apart on which files they consider: a file counted
+// by one but ignored by the other would reintroduce staleness.
+func isBlockFile(name string) bool {
+	if !strings.HasSuffix(name, ".md") {
+		return false
+	}
+
+	// Orphaned temp files from an interrupted write are never valid block
+	// content; the startup sweeper normally removes them, but skip them here
+	// too in case one is still mid-write.
+	return !strings.Contains(name, ".tmp.")
 }
 
 // NewIndexCache returns an empty, invalid cache — the first Get call always
@@ -76,18 +174,15 @@ func (c *IndexCache) Invalidate() {
 }
 
 // Get returns the cached index, assembling it from disk on a cache miss —
-// either an explicit Invalidate() or a change in the blocks directory's own
-// mtime since the value was cached.
+// either an explicit Invalidate() or a change in the blocks directory's
+// fingerprint since the value was cached.
 func (c *IndexCache) Get(blocksDir string, summaryMaxLength int) (Index, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	var currentDirModTime time.Time
-	if info, statErr := os.Stat(blocksDir); statErr == nil {
-		currentDirModTime = info.ModTime()
-	}
+	currentFingerprint := computeBlocksFingerprint(blocksDir)
 
-	if c.valid && currentDirModTime.Equal(c.dirModTime) {
+	if c.valid && currentFingerprint.Equal(c.fingerprint) {
 		return c.index, nil
 	}
 
@@ -98,7 +193,7 @@ func (c *IndexCache) Get(blocksDir string, summaryMaxLength int) (Index, error) 
 
 	c.index = index
 	c.valid = true
-	c.dirModTime = currentDirModTime
+	c.fingerprint = currentFingerprint
 	return index, nil
 }
 
@@ -124,14 +219,7 @@ func assembleIndex(blocksDir string, summaryMaxLength int) (Index, error) {
 		}
 
 		name := entry.Name()
-		if !strings.HasSuffix(name, ".md") {
-			continue
-		}
-
-		// Orphaned temp files from an interrupted write are never valid
-		// block content; the startup sweeper normally removes them, but
-		// skip them here too in case one is still mid-write.
-		if strings.Contains(name, ".tmp.") {
+		if !isBlockFile(name) {
 			continue
 		}
 
