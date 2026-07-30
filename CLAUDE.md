@@ -9,7 +9,7 @@
 
 ## Indentation
 
-- Use spaces for indentation, never tabs — in source code, markdown, and text.
+- Use tabs for indentation in Go source code.
 - In a file that already mixes tabs and spaces, use spaces for any new
   indentation but do not convert the existing tabs to spaces.
 
