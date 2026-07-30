@@ -864,8 +864,8 @@ Output Schema:
 
 ```
 Name:        "memory_append_block"
-Description: "Append text to a memory block. The bridge guarantees the appended
-             text starts on a new line, so no leading newline is needed.
+Description: "Append text to a memory block. The text is appended exactly as
+             provided — include leading newlines if needed for formatting.
              Creates the block if it doesn't exist (a summary will be needed:
              prefer memory_write_block for first creation)."
 
@@ -937,15 +937,12 @@ never computes a filename or even a block name to append an episodic entry — t
 Name:        "memory_append_episodic"
 Description: "Append an entry to the episodic log (the chronological record of
              significant conversations). The bridge files the entry under the
-             current month and writes the dated heading itself. Pass a short
-             title and a 2-5 sentence summary as the body; do not include a
-             markdown heading in content."
+             current month automatically. Format the entry as:
+             '## YYYY-MM-DD — Brief Title' followed by a 2-5 sentence summary."
 
 Input Schema:
   handle:   string, required  — Handle from memory_start_conversation
-  title:    string, required  — Short entry title; the bridge renders it as
-                                "## YYYY-MM-DD — Title" using its own clock
-  content:  string, required  — The entry body, without a heading line
+  content:  string, required  — The entry text to append
 
 Output Schema:
   handle:  string
