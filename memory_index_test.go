@@ -5,6 +5,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -174,4 +175,79 @@ func TestGetIndex_CacheInvalidatedOnWrite(t *testing.T) {
 	if len(blocks) != 1 || blocks[0]["name"] != "project-foo" {
 		t.Fatalf("expected the index to reflect the new block, got %#v", blocks)
 	}
+}
+
+// TestGetIndex_CacheDetectsInPlaceExternalEdit covers the case where the user
+// edits a block file directly with a text editor rather than going through the
+// bridge. Keying the cache on the blocks directory's own mtime is not
+// sufficient for this: on every mainstream filesystem a directory's mtime
+// tracks changes to its set of entries, not to the contents of the files those
+// entries name. An editor configured to write in place — for example Emacs with
+// `backup-by-copying` set to t, which copies the original aside and then
+// rewrites the original file — therefore leaves the directory mtime untouched,
+// and a directory-keyed cache would keep serving the pre-edit index.
+//
+// The edit here changes the frontmatter summary, because that is the field an
+// external edit can change without the bridge ever learning about it. The file
+// is rewritten through its existing directory entry (no create, rename, or
+// remove), which is precisely what an in-place editor save does.
+func TestGetIndex_CacheDetectsInPlaceExternalEdit(t *testing.T) {
+	b := newTestBridge(t)
+	handle := startConversation(t, b)
+
+	writeBlock(t, b, handle, "project-foo", "body text", "The original summary")
+
+	// This first call populates the cache, which is what makes the staleness
+	// possible at all; without it the next call would reassemble regardless.
+	before := callToolJSON(t, b.HandleMemoryGetIndex, map[string]any{"handle": handle})
+	if blocks := indexBlocks(t, before); len(blocks) != 1 || blocks[0]["summary"] != "The original summary" {
+		t.Fatalf("expected the original summary to be cached, got %#v", blocks)
+	}
+
+	blockPath := filepath.Join(b.Config.BlocksDirectory(), "project-foo.md")
+
+	directoryModTimeBefore := directoryModTime(t, b.Config.BlocksDirectory())
+
+	edited := "---\nsummary: An externally edited summary\nupdated_at: 2026-07-30T00:00:00Z\n---\n\nbody text\n"
+	if err := os.WriteFile(blockPath, []byte(edited), 0o644); err != nil {
+		t.Fatalf("simulating an external in-place edit: %v", err)
+	}
+
+	// Advance the file's mtime deliberately rather than relying on the clock to
+	// have ticked between the bridge's write and this one. Coarse filesystem
+	// timestamp granularity would otherwise make this test flaky.
+	editTime := time.Now().Add(2 * time.Second)
+	if err := os.Chtimes(blockPath, editTime, editTime); err != nil {
+		t.Fatalf("advancing the edited file's mtime: %v", err)
+	}
+
+	// The premise of the test is that the directory itself looks unchanged. If
+	// this ever fails, the test has stopped exercising the case it was written
+	// for and would pass for the wrong reason.
+	if directoryModTimeAfter := directoryModTime(t, b.Config.BlocksDirectory()); !directoryModTimeAfter.Equal(directoryModTimeBefore) {
+		t.Skipf("this filesystem moves directory mtime on an in-place file write, so the stale-cache case cannot be reproduced here")
+	}
+
+	after := callToolJSON(t, b.HandleMemoryGetIndex, map[string]any{"handle": handle})
+	blocks := indexBlocks(t, after)
+	if len(blocks) != 1 {
+		t.Fatalf("expected exactly one block after the edit, got %#v", blocks)
+	}
+
+	if blocks[0]["summary"] != "An externally edited summary" {
+		t.Fatalf("index served a stale summary after an in-place external edit: got %#v", blocks[0]["summary"])
+	}
+}
+
+// directoryModTime reads a directory's own mtime, used to assert the premise of
+// the in-place-edit test above.
+func directoryModTime(t *testing.T, dir string) time.Time {
+	t.Helper()
+
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("stat of blocks directory: %v", err)
+	}
+
+	return info.ModTime()
 }
