@@ -93,7 +93,7 @@ func TestStartConversation_EmptyMemoryStore(t *testing.T) {
 // TestStartConversation_HandleRegisteredInState covers "Handle registered in
 // state": after minting, the handle is present in the map with an empty
 // baseline set (this build has no branch map to assert on — see
-// IMPLEMENTATION-PROMPT.md Section 2).
+// IMPLEMENTATION-PROMPT-minimal.md Section 2).
 func TestStartConversation_HandleRegisteredInState(t *testing.T) {
 	b := newTestBridge(t)
 

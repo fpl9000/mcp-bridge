@@ -84,7 +84,7 @@ func TestMCP_InitializeHandshake(t *testing.T) {
 }
 
 // TestMCP_ToolListing covers "Tool listing": the server returns exactly the
-// eight in-scope memory tools (Section 3 of IMPLEMENTATION-PROMPT.md — the
+// eight in-scope memory tools (Section 3 of IMPLEMENTATION-PROMPT-minimal.md — the
 // full twelve-tool design's spawn_agent, check_agent, run_command, and
 // memory_run_maintenance are out of scope for this build).
 func TestMCP_ToolListing(t *testing.T) {

@@ -1,6 +1,6 @@
 // persistence.go implements .bridge-state.json load, checkpoint, and
 // shutdown write, per design spec Section 3.18. This build omits branching
-// (see IMPLEMENTATION-PROMPT.md Section 2), so the persisted state carries no
+// (see IMPLEMENTATION-PROMPT-minimal.md Section 2), so the persisted state carries no
 // branch maps — only live handles, their read baselines, and last-activity
 // times. Because there are no branch files on disk in this build, the
 // filesystem-reconciliation and lazy-adoption steps of the full design

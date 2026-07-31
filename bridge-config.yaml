@@ -4,7 +4,7 @@
 # external config file is found at the resolved location. Copy it alongside
 # the binary and edit it to customize the bridge for your machine.
 #
-# This build implements ONLY the memory subsystem (see IMPLEMENTATION-PROMPT.md
+# This build implements ONLY the memory subsystem (see IMPLEMENTATION-PROMPT-minimal.md
 # at the mcp-bridge repo root for the full scope decision). Sections below
 # marked "not yet honored by this build" are parsed so the config schema is
 # forward-compatible with the full twelve-tool design, but the bridge does not

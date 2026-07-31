@@ -6,7 +6,7 @@ asynchronously — no need to keep a local machine powered on.
 
 ## What is already here (pre-staged, not deliverables)
 
-- `IMPLEMENTATION-PROMPT.md` — the CC-web-adapted implementation prompt. Give
+- `IMPLEMENTATION-PROMPT-minimal.md` — the CC-web-adapted implementation prompt. Give
   this to Claude Code as the task. (The original, local-Windows version lives in
   `fpl9000/ai-skills` under `docs/stateful-agent-design/`.)
 - `docs/design-spec/` — a read-only working copy of the authoritative design
@@ -38,6 +38,12 @@ a pull request against `main`.
 
 ## After the run
 
-Once the PR is merged, you can delete the pre-staged reference material
-(`docs/design-spec/`, `IMPLEMENTATION-PROMPT.md`, and this file) from
-`mcp-bridge`, since the canonical design lives in `fpl9000/ai-skills`.
+Once the PR is merged, the pre-staged `docs/design-spec/` copy and this file may
+be removed, since the canonical design lives in `fpl9000/ai-skills`.
+
+**`IMPLEMENTATION-PROMPT-minimal.md` is not disposable and must be kept.** It is
+the authoritative record of what the minimal build was asked to be, and Chapter
+13 of the design cites it as such. Implementation prompts live in this
+repository, one file per round of work, named `IMPLEMENTATION-PROMPT-<round>.md`;
+a new round gets a new file, and an existing prompt is never rewritten to
+describe different work.

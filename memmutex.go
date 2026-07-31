@@ -1,7 +1,7 @@
 // memmutex.go defines the single process-wide mutex that serializes all
 // memory file I/O, per design spec Section 3.17 ("The memory mutex (ordinary
 // operation)"). With branching omitted from this build (see Section 2 of
-// IMPLEMENTATION-PROMPT.md), there is no merge mutex and no race-routing —
+// IMPLEMENTATION-PROMPT-minimal.md), there is no merge mutex and no race-routing —
 // this mutex's only job is to make sure concurrent tool calls never
 // interleave reads and writes on the same files, so last-writer-wins is the
 // entire concurrency story.
