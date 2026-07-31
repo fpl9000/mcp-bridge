@@ -56,7 +56,7 @@ func main() {
 	defer logger.Close()
 
 	// The full design's branching subsystem is not implemented in this
-	// build (IMPLEMENTATION-PROMPT.md Section 5): warn rather than silently
+	// build (IMPLEMENTATION-PROMPT-minimal.md Section 5): warn rather than silently
 	// implying behavior that isn't there.
 	if cfg.Branching.Enabled {
 		logger.Warn("branching not implemented in this build; last-writer-wins in effect", nil)

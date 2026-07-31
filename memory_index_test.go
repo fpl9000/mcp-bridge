@@ -1,5 +1,5 @@
 // memory_index_test.go covers design spec Section 8.1.5 (memory_get_index),
-// dropping the "reflects own branch" row per IMPLEMENTATION-PROMPT.md
+// dropping the "reflects own branch" row per IMPLEMENTATION-PROMPT-minimal.md
 // Section 2 (branching omitted from this build).
 package main
 

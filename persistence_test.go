@@ -1,5 +1,5 @@
 // persistence_test.go covers design spec Section 8.1.8, dropping the
-// branch-file and lazy-adoption rows per IMPLEMENTATION-PROMPT.md Section 2
+// branch-file and lazy-adoption rows per IMPLEMENTATION-PROMPT-minimal.md Section 2
 // (branching omitted from this build, so there are no branch files to
 // reconcile or adopt).
 package main

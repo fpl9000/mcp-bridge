@@ -1,6 +1,6 @@
 // tools.go registers the bridge's eight in-scope memory-aware tools with the
 // mcp-go server, per design spec Section 3.3 and the pruned tool list in
-// IMPLEMENTATION-PROMPT.md Section 3. spawn_agent, check_agent, run_command,
+// IMPLEMENTATION-PROMPT-minimal.md Section 3. spawn_agent, check_agent, run_command,
 // and memory_run_maintenance are out of scope for this build and are not
 // registered.
 package main

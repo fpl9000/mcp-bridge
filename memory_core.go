@@ -29,7 +29,7 @@ type OkResponse struct {
 }
 
 // readCoreContent reads core.md's raw bytes verbatim. A missing file is
-// cold-start-normal (Section 10 of IMPLEMENTATION-PROMPT.md): the bridge
+// cold-start-normal (Section 10 of IMPLEMENTATION-PROMPT-minimal.md): the bridge
 // never seeds core.md itself, so a brand-new memory store has none yet.
 func (b *Bridge) readCoreContent() (content string, sig Signature, err error) {
 	corePath := b.Config.CorePath()
@@ -92,7 +92,7 @@ func (b *Bridge) HandleMemoryGetCore(ctx context.Context, request mcp.CallToolRe
 
 // HandleMemoryWriteCore implements memory_write_core: replace core.md
 // atomically with no frontmatter. Writes are unconditional last-writer-wins
-// in this build (IMPLEMENTATION-PROMPT.md Section 2) — there is no baseline
+// in this build (IMPLEMENTATION-PROMPT-minimal.md Section 2) — there is no baseline
 // comparison or branch routing on the write path.
 func (b *Bridge) HandleMemoryWriteCore(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	handle, err := request.RequireString("handle")

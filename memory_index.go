@@ -2,7 +2,7 @@
 // index is assembled on demand from block frontmatter (there is no stored
 // index file), per design spec Section 3.10. A single process-wide cache
 // (rather than the full design's per-handle cache) is sufficient here
-// because branching is omitted from this build (IMPLEMENTATION-PROMPT.md
+// because branching is omitted from this build (IMPLEMENTATION-PROMPT-minimal.md
 // Section 2) — with no per-handle branches, every handle sees the same base
 // files, so there is no per-handle divergence for the cache to track.
 package main

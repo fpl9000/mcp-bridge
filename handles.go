@@ -1,6 +1,6 @@
 // handles.go implements handle minting, the handle map, and per-handle read
 // baselines, per design spec Section 3.14. This build omits branching (see
-// IMPLEMENTATION-PROMPT.md Section 2), so HandleState carries no branch map —
+// IMPLEMENTATION-PROMPT-minimal.md Section 2), so HandleState carries no branch map —
 // only baselines and last-activity survive from the full design's
 // HandleState. Handle eviction runs only during the deferred maintenance
 // sweep, so handles minted in this build are tracked but never evicted; that
@@ -240,7 +240,7 @@ func (hm *HandleMap) Snapshot() map[string]*HandleState {
 }
 
 // StartConversationResponse is the success shape returned by
-// memory_start_conversation. Per Section 3 of IMPLEMENTATION-PROMPT.md, this
+// memory_start_conversation. Per Section 3 of IMPLEMENTATION-PROMPT-minimal.md, this
 // build's response bundles core and the index into the same round trip
 // (rather than the full design's handle-only response), so a fresh
 // conversation never needs a second call before it has both.

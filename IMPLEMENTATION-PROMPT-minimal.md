@@ -14,7 +14,7 @@ You are running in an isolated cloud VM that is already connected to the
   are **reference only**: do not modify them, and do not treat them as part of
   the deliverable.
 - **Pre-staged files you must leave in place** (they are not your deliverables):
-  `docs/design-spec/`, `IMPLEMENTATION-PROMPT.md` (this file), and `CLAUDE.md`.
+  `docs/design-spec/`, `IMPLEMENTATION-PROMPT-minimal.md` (this file), and `CLAUDE.md`.
 - **Files you are creating** (the deliverable): the Go sources listed in
   Section 3, `go.mod`, `go.sum`, `bridge-config.yaml`, the project `README.md`,
   and `skill/SKILL.md`.
