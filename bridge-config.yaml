@@ -42,6 +42,23 @@ memory:
   directory: "C:\\franl\\.claude-agent-memory"
   summary_max_length: 200
 
+  # Blocks returned by memory_start_conversation alongside core, without the
+  # caller asking for them. Intended for content that must be applied to the
+  # act of writing rather than consulted about a topic -- the index can only
+  # surface blocks by topic, which never matches a block relevant to every
+  # conversation.
+  #
+  # Empty by default: a fresh installation has no blocks, so any default here
+  # would name something absent. Keep the list short and the blocks small --
+  # their cost is paid on every conversation whether or not they are used.
+  # A named block that does not exist is reported as skipped, not an error.
+  always_load_blocks: []
+
+  # Total body-size cap across always-loaded blocks. Blocks are loaded in the
+  # order listed until the cap would be exceeded; any that do not fit are
+  # reported as skipped rather than silently truncated. Set to 0 to disable.
+  always_load_max_bytes: 16384
+
 # Handle management (see design spec Section 3.14). This section IS honored
 # by this build, except that handle EVICTION only ever runs during the
 # (deferred) maintenance sweep, so in this build handles are minted and

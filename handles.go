@@ -248,6 +248,111 @@ type StartConversationResponse struct {
 	Handle string `json:"handle"`
 	Core   string `json:"core"`
 	Index  Index  `json:"index"`
+
+	// AlwaysLoaded carries the blocks named by memory.always_load_blocks.
+	// Omitted from the JSON when empty so that an installation not using the
+	// feature -- including every fresh one -- sees exactly the previous
+	// response shape.
+	AlwaysLoaded []AlwaysLoadedBlock `json:"always_loaded,omitempty"`
+}
+
+// AlwaysLoadedBlock is one entry of StartConversationResponse.AlwaysLoaded.
+//
+// Content is the block body with frontmatter stripped, matching what
+// memory_get_block returns, so the caller sees a block identically however it
+// arrived. Skipped is set instead of Content when the block could not be
+// loaded, with Reason saying why; the two are mutually exclusive.
+type AlwaysLoadedBlock struct {
+	Name    string `json:"name"`
+	Content string `json:"content,omitempty"`
+	Skipped bool   `json:"skipped,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+}
+
+// loadAlwaysLoadBlocks reads the configured always-load blocks, in configured
+// order, and records a read baseline for each under this handle.
+//
+// A missing block is reported as skipped rather than treated as an error. A
+// fresh installation has no blocks at all, and an operator may name a block
+// intending to create it later; failing conversation startup over that would
+// make the feature hazardous to configure. The skip is visible in the response
+// and logged, so it does not pass unnoticed either.
+//
+// The baseline matters: without it, a subsequent memory_get_block on the same
+// block would report changed_since_last_read as false on its first call
+// (no baseline recorded) even though the caller already holds the content --
+// and would then miss a genuine external edit made in between. Recording the
+// baseline here makes an always-loaded block behave exactly as if the caller
+// had read it explicitly.
+//
+// The caller must already hold the memory mutex.
+func (b *Bridge) loadAlwaysLoadBlocks(handle string) []AlwaysLoadedBlock {
+	names := b.Config.Memory.AlwaysLoadBlocks
+	if len(names) == 0 {
+		return nil
+	}
+
+	maxBytes := b.Config.Memory.AlwaysLoadMaxBytes
+	loaded := make([]AlwaysLoadedBlock, 0, len(names))
+	seen := make(map[string]bool, len(names))
+	total := 0
+
+	for _, name := range names {
+		// A duplicate would be paid for twice in the context window and add
+		// nothing, so drop it silently -- it is a harmless config redundancy
+		// rather than a mistake worth surfacing on every conversation.
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+
+		path := b.blockPath(name)
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil {
+			reason := "block does not exist"
+			if !os.IsNotExist(readErr) {
+				reason = "block could not be read"
+				b.Logger.Error("memory_start_conversation: always-load block read failed",
+					map[string]any{"handle": handle, "block": name, "error": readErr.Error()})
+			} else {
+				b.Logger.Info("memory_start_conversation: always-load block absent",
+					map[string]any{"handle": handle, "block": name})
+			}
+
+			loaded = append(loaded, AlwaysLoadedBlock{Name: name, Skipped: true, Reason: reason})
+			continue
+		}
+
+		_, body, _ := splitFrontmatter(raw)
+
+		// Enforce the cap before adding, so the reported total never exceeds
+		// it. Later blocks are still considered: a small one after a large one
+		// may still fit, and skipping it would make the outcome depend on
+		// ordering more than necessary.
+		if maxBytes > 0 && total+len(body) > maxBytes {
+			b.Logger.Info("memory_start_conversation: always-load block exceeds size cap",
+				map[string]any{"handle": handle, "block": name, "bytes": len(body), "total": total, "cap": maxBytes})
+			loaded = append(loaded, AlwaysLoadedBlock{
+				Name:    name,
+				Skipped: true,
+				Reason:  "would exceed memory.always_load_max_bytes",
+			})
+			continue
+		}
+
+		total += len(body)
+
+		if sig, statErr := computeSignature(path); statErr == nil {
+			b.Handles.SetBaseline(handle, name, sig)
+		}
+
+		loaded = append(loaded, AlwaysLoadedBlock{Name: name, Content: body})
+	}
+
+	b.Logger.Info("memory_start_conversation: always-load blocks resolved",
+		map[string]any{"handle": handle, "requested": len(names), "bytes": total})
+
+	return loaded
 }
 
 // HandleMemoryStartConversation implements memory_start_conversation: mint a
@@ -276,10 +381,12 @@ func (b *Bridge) HandleMemoryStartConversation(ctx context.Context, request mcp.
 		return mcp.NewToolResultText(newErrorResponse(handle, ErrCodeInternalError, internalErrorMessage, nil)), nil
 	}
 
+	alwaysLoaded := b.loadAlwaysLoadBlocks(handle)
+
 	b.Handles.Touch(handle)
 	b.Persist.MarkDirty()
 
-	response := StartConversationResponse{Handle: handle, Core: content, Index: index}
+	response := StartConversationResponse{Handle: handle, Core: content, Index: index, AlwaysLoaded: alwaysLoaded}
 	encoded, _ := json.Marshal(response)
 	return mcp.NewToolResultText(string(encoded)), nil
 }

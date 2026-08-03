@@ -53,6 +53,31 @@ type RunCommandConfig struct {
 type MemoryConfig struct {
 	Directory        string `yaml:"directory"`
 	SummaryMaxLength int    `yaml:"summary_max_length"`
+
+	// AlwaysLoadBlocks names blocks whose content memory_start_conversation
+	// returns alongside core, without the caller having to ask for them.
+	//
+	// It exists for content the LLM must apply to the act of writing rather
+	// than consult about a topic -- formatting conventions being the
+	// motivating case. The index lets a caller find blocks *by topic*, which
+	// cannot surface a block that is relevant to every conversation and to no
+	// particular opening message. Naming such a block here removes the need
+	// for the caller to think to look for it.
+	//
+	// Empty by default, and deliberately so: a fresh installation has no
+	// blocks at all, so any non-empty default would name something that does
+	// not exist. This is per-installation configuration rather than something
+	// the shipped skill can state, which keeps the skill free of references
+	// to blocks that exist only in one person's memory store.
+	AlwaysLoadBlocks []string `yaml:"always_load_blocks"`
+
+	// AlwaysLoadMaxBytes caps the total body size of always-loaded blocks.
+	// Their cost is paid on every conversation whether or not they are used,
+	// so an unbounded list would quietly consume context. On exceeding the
+	// cap the bridge loads what fits, in configured order, and reports the
+	// omission rather than silently truncating. Zero or negative disables
+	// the cap.
+	AlwaysLoadMaxBytes int `yaml:"always_load_max_bytes"`
 }
 
 // HandleConfig controls handle minting and (deferred) eviction.
@@ -172,6 +197,18 @@ func (c *Config) validate() error {
 
 	if c.Memory.SummaryMaxLength <= 0 {
 		return errors.New("memory.summary_max_length must be > 0")
+	}
+
+	// Reject block names that could never resolve. A name that fails
+	// isValidBlockName is a typo or a path-traversal attempt, and either way
+	// silently skipping it at load time would hide the mistake for as long as
+	// the operator kept believing the block was being loaded. A name that is
+	// merely absent from disk is NOT rejected here: a fresh installation has
+	// no blocks yet, and a block named here may legitimately be created later.
+	for _, name := range c.Memory.AlwaysLoadBlocks {
+		if !isValidBlockName(name) {
+			return fmt.Errorf("memory.always_load_blocks contains invalid block name %q; use letters, digits, hyphens, and underscores", name)
+		}
 	}
 
 	if c.Handle.IDLength < 8 {
