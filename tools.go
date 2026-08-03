@@ -20,7 +20,12 @@ func RegisterTools(s *server.MCPServer, b *Bridge) {
 				"content, and the derived block index in one round trip. Call this once at the start "+
 				"of any conversation that will use memory, before any other memory tool. Pass the "+
 				"returned handle to every subsequent memory tool call. If any memory tool returns a "+
-				"handle error, call this again to obtain a fresh handle and retry the operation."),
+				"handle error, call this again to obtain a fresh handle and retry the operation. "+
+				"The response may also include always_loaded: blocks the installation has configured "+
+				"to be delivered on every conversation because they apply to how you work rather than "+
+				"to any one topic. Read them as you would core, and follow them; you were given them "+
+				"precisely because you would have had no reason to ask. An entry marked skipped "+
+				"carries no content and its reason says why."),
 		),
 		b.HandleMemoryStartConversation,
 	)

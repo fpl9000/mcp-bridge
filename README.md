@@ -20,7 +20,7 @@ on-disk layout entirely, and the LLM never sees it.
 
 | Tool | Purpose |
 | --- | --- |
-| `memory_start_conversation` | Mint a fresh handle; return it along with core content and the derived block index in one round trip. Call once per conversation, before any other memory tool. |
+| `memory_start_conversation` | Mint a fresh handle; return it along with core content, the derived block index, and any configured always-load blocks in one round trip. Call once per conversation, before any other memory tool. |
 | `memory_get_core` | Return the core memory document. |
 | `memory_write_core` | Replace the core memory document (full replacement). |
 | `memory_get_index` | Return the derived index: every block's name, one-line summary, and last-updated time. |
