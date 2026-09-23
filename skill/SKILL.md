@@ -85,9 +85,12 @@ accumulate changes and batch-write at the end — conversations can end abruptly
   to change.
 - **Append to a block** (`memory_append_block`) when adding to a running list or
   log-style block without rewriting it.
-- **Append to the episodic log** (`memory_append_episodic`) periodically during
-  long conversations, at natural breakpoints, and when the user is wrapping up.
-  Pass a short `title` and a 2–5 sentence summary as `content`. The bridge writes
+- **Append to the episodic log** (`memory_append_episodic`) as soon as a
+  conversation produces something worth recalling later: a decision, completed
+  work, a new fact about the user, or a changed plan. Do not wait for a closing
+  signal; many conversations end without one. Append again at later milestones if
+  the conversation continues. A conversation with nothing worth recalling needs no
+  entry. Pass a short `title` and a 2–5 sentence summary as `content`. The bridge writes
   the `## YYYY-MM-DD — Title` heading itself from its own clock, so do not put a
   markdown heading in `content` — an entry that begins with one is rejected.
 
@@ -124,7 +127,9 @@ For any other code, follow the message's instructions.
 If the user says goodbye, thanks you, or the conversation is clearly winding down:
 
 1. Persist any pending memory updates (core, relevant blocks).
-2. Append an episodic entry summarizing the conversation.
+2. If anything since the last episodic entry is worth recording, append a final
+   episodic entry covering it. This is a catch-up step, not the main trigger —
+   see "Append to the episodic log" above.
 3. You do not need to announce that you're saving memory — just do it.
 
 ## User Questions and Corrections
